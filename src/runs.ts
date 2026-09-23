@@ -34,8 +34,13 @@ export function validateNewRun(input: unknown): NewRun {
   if (!CYCLES.includes(body.cycle as Cycle)) {
     details.push(`cycle must be one of ${CYCLES.join("|")}`);
   }
-  if (typeof body.co2GramsPerKm !== "number" || Number.isNaN(body.co2GramsPerKm)) {
-    details.push("co2GramsPerKm must be a number");
+  if (
+    typeof body.co2GramsPerKm !== "number" ||
+    !Number.isFinite(body.co2GramsPerKm) ||
+    body.co2GramsPerKm < 0 ||
+    body.co2GramsPerKm > 500
+  ) {
+    details.push("co2GramsPerKm must be a number between 0 and 500");
   }
   if (details.length > 0) throw new ValidationError(details);
 
@@ -61,6 +66,13 @@ export class RunStore {
 
   get(id: string): MeasurementRun | undefined {
     return this.runs.get(id);
+  }
+
+  delete(id: string): MeasurementRun | undefined {
+    const run = this.runs.get(id);
+    if (!run) return undefined;
+    this.runs.delete(id);
+    return run;
   }
 
   create(input: NewRun): MeasurementRun {
