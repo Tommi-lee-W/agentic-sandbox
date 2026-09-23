@@ -18,6 +18,10 @@
 </head>
 <body>
   <h1>Measurement Runs</h1>
+  <form id="filter-runs" aria-label="Filter runs">
+    <input id="vehicle-filter" name="vehicleFilter" placeholder="Filter by vehicle">
+    <button type="submit">Filter</button>
+  </form>
   <form id="new-run" aria-label="Add run">
     <input id="vehicleId" name="vehicleId" placeholder="Vehicle ID" required>
     <select id="cycle" name="cycle" aria-label="Cycle">
@@ -36,11 +40,17 @@
 <script>
   const tbody = document.getElementById("runs");
   const status = document.getElementById("status");
-  async function load() {
-    const res = await fetch("/api/runs");
+  async function load(filter = "") {
+    const url = filter ? `/api/runs?vehicleId=${encodeURIComponent(filter)}` : "/api/runs";
+    const res = await fetch(url);
     const runs = await res.json();
     tbody.innerHTML = runs.map(r => `<tr data-run-id="${r.id}"><td>${r.id}</td><td>${r.vehicleId}</td><td>${r.cycle}</td><td>${r.co2GramsPerKm}</td><td>${r.status}</td></tr>`).join("");
   }
+  document.getElementById("filter-runs").addEventListener("submit", (e) => {
+    e.preventDefault();
+    const filter = document.getElementById("vehicle-filter").value.trim();
+    load(filter);
+  });
   document.getElementById("new-run").addEventListener("submit", async (e) => {
     e.preventDefault();
     const body = {
@@ -51,7 +61,11 @@
     const res = await fetch("/api/runs", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(body) });
     const data = await res.json();
     status.textContent = res.ok ? `Created ${data.id}` : `Error: ${(data.details || [data.error]).join(", ")}`;
-    if (res.ok) { e.target.reset(); load(); }
+    if (res.ok) {
+      e.target.reset();
+      const filter = document.getElementById("vehicle-filter").value.trim();
+      load(filter);
+    }
   });
   load();
 </script>
