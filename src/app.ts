@@ -39,6 +39,12 @@ export function createApp({ config, store }: AppContext): Express {
     res.status(201).json(run);
   });
 
+  app.delete("/api/runs/:id", (req, res) => {
+    const deleted = store.delete(req.params.id);
+    if (!deleted) return res.status(404).json({ error: "run not found", id: req.params.id });
+    return res.status(200).json(deleted);
+  });
+
   app.use((err: unknown, _req: Request, res: Response, _next: NextFunction) => {
     if (err instanceof ValidationError) {
       return res.status(400).json({ error: err.message, details: err.details });
