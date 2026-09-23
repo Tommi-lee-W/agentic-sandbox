@@ -16,13 +16,29 @@ export interface NewRun {
   co2GramsPerKm: number;
 }
 
+export interface StatusUpdate {
+  status: RunStatus;
+}
+
 export class ValidationError extends Error {
   constructor(public readonly details: string[]) {
     super("validation failed");
   }
 }
 
+export class InvalidRunTransitionError extends Error {
+  constructor(public readonly from: RunStatus, public readonly to: RunStatus) {
+    super("invalid transition");
+  }
+}
+
 const CYCLES: Cycle[] = ["WLTC", "NEDC", "RDE"];
+const RUN_STATUSES: RunStatus[] = ["planned", "running", "done"];
+const ALLOWED_TRANSITIONS: Record<RunStatus, RunStatus[]> = {
+  planned: ["running"],
+  running: ["done"],
+  done: [],
+};
 
 export function validateNewRun(input: unknown): NewRun {
   const details: string[] = [];
@@ -44,6 +60,24 @@ export function validateNewRun(input: unknown): NewRun {
     cycle: body.cycle as Cycle,
     co2GramsPerKm: body.co2GramsPerKm as number,
   };
+}
+
+export function validateStatusUpdate(input: unknown): StatusUpdate {
+  const details: string[] = [];
+  const body = (input ?? {}) as Record<string, unknown>;
+
+  if (typeof body.status !== "string" || !RUN_STATUSES.includes(body.status as RunStatus)) {
+    details.push(`status must be one of ${RUN_STATUSES.join("|")}`);
+  }
+  if (details.length > 0) throw new ValidationError(details);
+
+  return {
+    status: body.status as RunStatus,
+  };
+}
+
+export function canTransition(from: RunStatus, to: RunStatus): boolean {
+  return ALLOWED_TRANSITIONS[from]?.includes(to) ?? false;
 }
 
 export class RunStore {
@@ -72,6 +106,16 @@ export class RunStore {
       createdAt: new Date().toISOString(),
     };
     this.runs.set(run.id, run);
+    return run;
+  }
+
+  updateStatus(id: string, status: RunStatus): MeasurementRun {
+    const run = this.runs.get(id);
+    if (!run) throw new Error(`run not found: ${id}`);
+    if (!canTransition(run.status, status)) {
+      throw new InvalidRunTransitionError(run.status, status);
+    }
+    run.status = status;
     return run;
   }
 }

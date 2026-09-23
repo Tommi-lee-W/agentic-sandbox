@@ -59,6 +59,28 @@ describe("runs api", () => {
     expect(res.body.id).toMatch(/^run-\d{4}$/);
   });
 
+  it("updates a run through the allowed status transitions", async () => {
+    const toRunning = await request(app).patch("/api/runs/run-0001/status").send({ status: "running" });
+    expect(toRunning.status).toBe(200);
+    expect(toRunning.body).toMatchObject({ id: "run-0001", status: "running" });
+
+    const toDone = await request(app).patch("/api/runs/run-0001/status").send({ status: "done" });
+    expect(toDone.status).toBe(200);
+    expect(toDone.body).toMatchObject({ id: "run-0001", status: "done" });
+  });
+
+  it("rejects invalid transitions with 409", async () => {
+    const res = await request(app).patch("/api/runs/run-0001/status").send({ status: "done" });
+    expect(res.status).toBe(409);
+    expect(res.body).toMatchObject({ error: "invalid transition", from: "planned", to: "done" });
+  });
+
+  it("returns 404 for unknown status updates", async () => {
+    const res = await request(app).patch("/api/runs/run-9999/status").send({ status: "running" });
+    expect(res.status).toBe(404);
+    expect(res.body).toMatchObject({ error: "run not found", id: "run-9999" });
+  });
+
   it("rejects invalid input with details", async () => {
     const res = await request(app).post("/api/runs").send({ vehicleId: "", cycle: "FOO", co2GramsPerKm: "x" });
     expect(res.status).toBe(400);
