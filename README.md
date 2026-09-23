@@ -50,6 +50,24 @@ npm run e2e          # browser tests, server must be running, browser installed 
 
 Errors are JSON with an `error` field. Validation errors add `details`; other errors may add context fields such as `id`.
 
+## Metrics
+
+The Kubernetes deployment enables the app's plain-text metrics listener on port `9100`. It is not a JSON HTTP route; it writes Prometheus-style lines such as `sandbox_runs_total` and `sandbox_uptime_seconds` to a dedicated listener.
+
+To reach it from your machine while the app is running in the cluster:
+
+```bash
+kubectl port-forward svc/sandbox-app 9100:metrics
+curl http://localhost:9100
+```
+
+The output should look like this:
+
+```text
+sandbox_runs_total 3
+sandbox_uptime_seconds 27
+```
+
 ## Environment contract
 
 Every variable the app reads is declared in `src/config.ts` and provided by `k8s/configmap.yaml`. Keep this table, the code, and the manifest in sync.
